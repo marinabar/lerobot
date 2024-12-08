@@ -50,7 +50,7 @@ def get_stats_einops_patterns(dataset, num_workers=0):
             # sanity check that images are float32 in range [0,1]
             assert batch[key].dtype == torch.float32, f"expect torch.float32, but instead {batch[key].dtype=}"
             assert batch[key].max() <= 1, f"expect pixels lower than 1, but instead {batch[key].max()=}"
-            assert batch[key].min() >= 0, f"expect pixels greater than 1, but instead {batch[key].min()=}"
+            assert batch[key].min() >= 0, f"expect pixels greater than 0, but instead {batch[key].min()=}"
 
             stats_patterns[key] = "b c h w -> c 1 1"
         elif batch[key].ndim == 2:
