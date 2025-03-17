@@ -116,6 +116,7 @@ def filtering_metadata(
         return 0, [], pd.DataFrame()
     return len(filtered_datasets), filtered_datasets["repo_id"].to_list(), filtered_datasets
 
+
 def run_server(
     dataset: LeRobotDataset | IterableNamespace | None,
     episodes: list[int] | None,
@@ -153,6 +154,8 @@ def run_server(
 
         if file:
             df = pd.read_csv(file)
+            # Remove nan robot type
+            df = df.dropna(subset=['robot_type'])
             global full_dataset
             full_dataset = df
             global current_dataset
@@ -164,21 +167,26 @@ def run_server(
             fps_filter = list([int(el) for el in set(df['fps'].to_list())])
             task_count = int(df['total_tasks'].min())
             current_number_of_datasets = len(df)
-
+            
+            robot_fps = {}
+            for robot in robot_types:
+                robot_fps[str(robot)] = list([int(el) for el in set(df[df['robot_type'] == robot]['fps'].to_list())])
+                robot_fps[robot].sort()
+            robot_fps = json.dumps(robot_fps)
             return render_template('filter_dataset.html',
                                 min_frames=min_frames,
                                 min_eps=min_eps,
                                 robot_types=robot_types,
                                 fps_options=fps_filter,
                                 task_count=task_count,
-                                number_datasets=current_number_of_datasets)
+                                number_datasets=current_number_of_datasets,
+                                robot_fps_map=robot_fps)
 
     @app.route('/submit', methods=['POST'])
     def submit_form():
         global current_repo_id
         global filtered_data
         global current_dataset
-        print(f"Value of finished: {request.form['finished']}")
         if int(request.form['finished']) == 0:
             selected_frames = int(request.form['frames'])
             selected_episodes = int(request.form['episodes'])
@@ -190,7 +198,7 @@ def run_server(
                 selected_episodes, 
                 selected_frames, 
                 selected_robot_type, 
-                True, 
+                False, 
                 selected_fps, 
                 selected_tasks
             )
@@ -208,13 +216,19 @@ def run_server(
             fps_filter = list([int(el) for el in set(current_dataset['fps'].to_list())])
             task_count = int(current_dataset['total_tasks'].min())
             current_number_of_datasets = len(current_dataset)
+            robot_fps = {}
+            for robot in robot_types:
+                robot_fps[str(robot)] = list([int(el) for el in set(current_dataset[current_dataset['robot_type'] == robot]['fps'].to_list())])
+                robot_fps[robot].sort()
+            robot_fps = json.dumps(robot_fps)
             return render_template('filter_dataset.html',
                                 min_frames=min_frames,
                                 min_eps=min_eps,
                                 robot_types=robot_types,
                                 fps_options=fps_filter,
                                 task_count=task_count,
-                                number_datasets=current_number_of_datasets)
+                                number_datasets=current_number_of_datasets,
+                                robot_fps_map=robot_fps)
         elif int(request.form['finished']) == 1:
             print(f"redirecting to {current_repo_id}")
             repo_ids = current_repo_id
