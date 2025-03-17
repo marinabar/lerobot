@@ -230,18 +230,25 @@ def run_server(
                                 number_datasets=current_number_of_datasets,
                                 robot_fps_map=robot_fps)
         elif int(request.form['finished']) == 1:
-            print(f"redirecting to {current_repo_id}")
-            repo_ids = current_repo_id
-            dataset_namespace = repo_ids[0].split("/")[0]
-            dataset_name = repo_ids[0].split("/")[1]
-            return redirect(
-                url_for(
-                    "show_episode",
-                    dataset_namespace=dataset_namespace,
-                    dataset_name=dataset_name,
-                    episode_id=0,
-                )
-            )
+            return redirect(url_for('list_datasets'))
+
+    @app.route('/datasets')
+    def list_datasets():
+        global filtered_data
+        if filtered_data.empty:
+            return "No datasets available.", 404
+
+        datasets_info = []
+        for _, row in filtered_data.iterrows():
+            repo_id = row['repo_id']
+            tasks = filtered_data[filtered_data['repo_id'] == repo_id]['tasks'].to_list()[0]
+            tasks = json.loads(tasks)
+            first_task = list(tasks.values())[0]
+            datasets_info.append({
+                'name': repo_id,
+                'task_description': first_task if first_task else 'No task description available'
+            })
+        return render_template('list_datasets.html', datasets=datasets_info)
 
     @app.route("/<string:dataset_namespace>/<string:dataset_name>/episode_<int:episode_id>")
     def show_episode(dataset_namespace, dataset_name, episode_id, dataset=dataset, episodes=episodes):
