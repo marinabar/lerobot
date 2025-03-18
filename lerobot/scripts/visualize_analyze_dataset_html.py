@@ -354,6 +354,15 @@ def run_server(
                 number_datasets=len(current_dataset),
                 repo_ids=all_repo_ids)
         
+    @app.route('/final_filtering')
+    def final_filtering():
+        global current_dataset
+        all_repo_ids = current_dataset['repo_id'].to_list()
+        return render_template(
+            'final_filtering.html', 
+            number_datasets=len(current_dataset),
+            repo_ids=all_repo_ids)
+        
     app.run(host=host, port=port, debug=True)
 
 
