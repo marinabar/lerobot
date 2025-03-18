@@ -7,6 +7,61 @@
 </head>
 
 <body class="h-screen overflow-hidden font-mono text-white flex items-center justify-center">
+    
+    <script>
+        const robotFpsMap = JSON.parse('{{ robot_fps_map | safe }}');
+        var firstTime = true;
+
+        function toggleCheckboxes(action, group) {
+            const checkboxes = document.querySelectorAll(`input[name="${group}"]`);
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = action === 'select';
+            });
+            updateFpsOptions(isChecked = action === 'select');
+        }
+
+        function updateFpsOptions(isChecked) {
+            const selectedRobotTypes = Array.from(document.querySelectorAll('input[name="robot_type"]:checked')).map(checkbox => checkbox.value);
+            const fpsSet = new Set();
+
+            selectedRobotTypes.forEach(robotType => {
+                if (robotFpsMap[robotType]) {
+                    robotFpsMap[robotType].forEach(fps => fpsSet.add(fps));
+                }
+            });
+
+            const fpsContainer = document.getElementById('fps-container');
+            fpsContainer.innerHTML = '';
+            if (firstTime) {
+                isChecked = true;
+                firstTime = false;
+            }
+
+            fpsSet.forEach(fps => {
+                const div = document.createElement('div');
+                if (isChecked) {
+                    div.innerHTML = `
+                        <input type="checkbox" id="fps" name="fps" value="${fps}" checked>
+                        <label for="fps" class="text-gray-700 ml-2">${fps}</label>
+                    `;
+                } else {
+                    div.innerHTML = `
+                        <input type="checkbox" id="fps" name="fps" value="${fps}">
+                        <label for="fps" class="text-gray-700 ml-2">${fps}</label>
+                    `;
+                }
+                fpsContainer.appendChild(div);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const robotTypeCheckboxes = document.querySelectorAll('input[name="robot_type"]');
+            robotTypeCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', updateFpsOptions);
+            });
+            updateFpsOptions(); // Initialize FPS options based on default checked robot types
+        });
+    </script>
     <div class="fixed inset-0 w-full h-full overflow-hidden">
         <video class="absolute min-w-full min-h-full w-auto h-auto top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" autoplay muted loop>
             <source src="https://huggingface.co/datasets/cadene/koch_bimanual_folding/resolve/v1.6/videos/observation.images.phone_episode_000037.mp4" type="video/mp4">
@@ -14,8 +69,8 @@
         </video>
     </div>
     <div class="fixed inset-0 bg-black bg-opacity-80"></div>
-     <div class="absolute top-4 right-4 bg-white text-black p-4 rounded shadow-md">
-        <p>Total datasets : {{number_datasets}}</p>
+    <div class="absolute top-4 right-4 bg-white text-black p-4 rounded shadow-md">
+        <p>Total datasets : {{ number_datasets }}</p>
     </div>
     <div class="relative bg-white text-gray-700 p-10 rounded shadow-md w-full max-w-md h-3/4 overflow-y-auto z-10">
         <h1 class="text-2xl font-bold mb-6">Filter data</h1>
@@ -31,10 +86,14 @@
 
             <div>
                 <label class="block text-gray-700">Robot types (multiple choice) :</label>
+                <div class="flex justify-between items-center mb-2">
+                    <button type="button" onclick="toggleCheckboxes('select', 'robot_type')" class="text-blue-500">Select All</button>
+                    <button type="button" onclick="toggleCheckboxes('deselect', 'robot_type')" class="text-red-500">Deselect All</button>
+                </div>
                 <div class="h-64 overflow-y-auto border rounded-md p-2 mt-2 space-y-2">
                     {% for type in robot_types %}
                         <div>
-                            <input type="checkbox" id="robot_type_{{ loop.index }}" name="robot_type" value="{{ type }}">
+                            <input type="checkbox" id="robot_type_{{ loop.index }}" name="robot_type" value="{{ type }}" checked>
                             <label for="robot_type_{{ loop.index }}" class="text-gray-700 ml-2">{{ type }}</label>
                         </div>
                     {% endfor %}
@@ -43,13 +102,12 @@
 
             <div>
                 <label class="block text-gray-700">FPS (multiple choice) :</label>
-                <div class="h-32 overflow-y-auto border rounded-md p-2 mt-2 space-y-2">
-                    {% for fps in fps_options %}
-                        <div>
-                            <input type="checkbox" id="fps_{{ loop.index }}" name="fps" value="{{ fps }}">
-                            <label for="fps_{{ loop.index }}" class="text-gray-700 ml-2">{{ fps }}</label>
-                        </div>
-                    {% endfor %}
+                <div class="flex justify-between items-center mb-2">
+                    <button type="button" onclick="toggleCheckboxes('select', 'fps')" class="text-blue-500">Select All</button>
+                    <button type="button" onclick="toggleCheckboxes('deselect', 'fps')" class="text-red-500">Deselect All</button>
+                </div>
+                <div id="fps-container" class="h-32 overflow-y-auto border rounded-md p-2 mt-2 space-y-2">
+                    
                 </div>
             </div>
 
@@ -62,7 +120,6 @@
                 <input type="number" id="finished" name="finished" value="0" hidden>
                 <input type="submit" value="Filter" class="w-full bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600">
             </div>
-            <!-- Done Button -->
         </form>
         <form action="/submit" method="post" class="space-y-4">
             <div class="mt-4">
