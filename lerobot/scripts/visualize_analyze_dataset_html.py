@@ -146,7 +146,6 @@ def run_server(
     @app.route('/upload', methods=['POST'])
     def upload_file():
         if int(request.form['existing']) == 0:
-            # <-- NEW: read from textarea and parse user list
             pasted_text = request.form.get('pasted_list', '').strip()
             if not pasted_text:
                 print("No pasted dataset list provided.")
@@ -161,10 +160,7 @@ def run_server(
                 print(f"Could not parse pasted dataset list: {e}")
                 return redirect(url_for('homepage'))
 
-            # Create a dummy tasks column so that list_datasets.html can display them
-            # If you have no tasks, you can just store "N/A".
-            # We'll store them in "filtered_data" and "current_dataset" so that
-            # list_datasets uses them immediately.
+            # empty tasks column so that list_datasets.html can display them, we don't have access now
             df = pd.DataFrame({'repo_id': dataset_list,
                             'tasks': [json.dumps({'0':'N/A'})]*len(dataset_list)})
 
@@ -176,7 +172,7 @@ def run_server(
             current_dataset = df
             filtered_data = df
 
-            # Directly jump to /datasets so the user sees the list
+            # go to filter page with the new list of datasets
             return redirect(url_for('list_datasets'))
         else:
             # to update for csv file
