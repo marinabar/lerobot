@@ -132,7 +132,8 @@ def run_server(
     current_dataset = pd.DataFrame()
     filtered_data = pd.DataFrame()
     current_repo_id = None
-    csv_file = "./lerobot_datasets.csv"
+
+    csv_file = "/Users/mbar/projects/huggingface/lerobot/lerobot/scripts/lerobot_datasets.csv"
     @app.route('/')
     def homepage():
         csv_last_modified = os.path.getmtime(csv_file)
@@ -145,42 +146,69 @@ def run_server(
     @app.route('/upload', methods=['POST'])
     def upload_file():
         if int(request.form['existing']) == 0:
-            # TODO : create update code
-            return redirect(url_for('homepage'))
-        file = csv_file
-        if file == '' or not file.endswith('.csv') or not os.path.exists(file):
-            print(f"File {file} does not exist")
-            return redirect(url_for('homepage'))
+            # <-- NEW: read from textarea and parse user list
+            pasted_text = request.form.get('pasted_list', '').strip()
+            if not pasted_text:
+                print("No pasted dataset list provided.")
+                return redirect(url_for('homepage'))
 
-        if file:
-            df = pd.read_csv(file)
-            # Remove nan robot type
-            df = df.dropna(subset=['robot_type'])
+            import ast
+            try:
+                dataset_list = ast.literal_eval(pasted_text)
+                if not isinstance(dataset_list, list):
+                    raise ValueError("Pasted text is not a Python list.")
+            except Exception as e:
+                print(f"Could not parse pasted dataset list: {e}")
+                return redirect(url_for('homepage'))
+
+            # Create a dummy tasks column so that list_datasets.html can display them
+            # If you have no tasks, you can just store "N/A".
+            # We'll store them in "filtered_data" and "current_dataset" so that
+            # list_datasets uses them immediately.
+            df = pd.DataFrame({'repo_id': dataset_list,
+                            'tasks': [json.dumps({'0':'N/A'})]*len(dataset_list)})
+
             global full_dataset
-            full_dataset = df
             global current_dataset
+            global filtered_data
+
+            full_dataset = df
             current_dataset = df
-            min_eps = int(df['total_episodes'].min())
-            min_frames = int(df['total_frames'].min())
-            robot_types = list([str(el) for el in set(df['robot_type'].to_list())])
-            robot_types.sort()
-            fps_filter = list([int(el) for el in set(df['fps'].to_list())])
-            task_count = int(df['total_tasks'].min())
-            current_number_of_datasets = len(df)
-            
-            robot_fps = {}
-            for robot in robot_types:
-                robot_fps[str(robot)] = list([int(el) for el in set(df[df['robot_type'] == robot]['fps'].to_list())])
-                robot_fps[robot].sort()
-            robot_fps = json.dumps(robot_fps)
-            return render_template('filter_dataset.html',
-                                min_frames=min_frames,
-                                min_eps=min_eps,
-                                robot_types=robot_types,
-                                fps_options=fps_filter,
-                                task_count=task_count,
-                                number_datasets=current_number_of_datasets,
-                                robot_fps_map=robot_fps)
+            filtered_data = df
+
+            # Directly jump to /datasets so the user sees the list
+            return redirect(url_for('list_datasets'))
+        else:
+            # to update for csv file
+            file = csv_file
+            if file == '' or not file.endswith('.csv') or not os.path.exists(file):
+                print(f"File {file} does not exist")
+                return redirect(url_for('homepage'))
+            if file:
+                df = pd.read_csv(file)
+                # Remove nan robot type
+                df = df.dropna(subset=['robot_type'])
+                min_eps = int(df['total_episodes'].min())
+                min_frames = int(df['total_frames'].min())
+                robot_types = list([str(el) for el in set(df['robot_type'].to_list())])
+                robot_types.sort()
+                fps_filter = list([int(el) for el in set(df['fps'].to_list())])
+                task_count = int(df['total_tasks'].min())
+                current_number_of_datasets = len(df)
+                
+                robot_fps = {}
+                for robot in robot_types:
+                    robot_fps[str(robot)] = list([int(el) for el in set(df[df['robot_type'] == robot]['fps'].to_list())])
+                    robot_fps[robot].sort()
+                robot_fps = json.dumps(robot_fps)
+                return render_template('filter_dataset.html',
+                                    min_frames=min_frames,
+                                    min_eps=min_eps,
+                                    robot_types=robot_types,
+                                    fps_options=fps_filter,
+                                    task_count=task_count,
+                                    number_datasets=current_number_of_datasets,
+                                    robot_fps_map=robot_fps)
 
     @app.route('/submit', methods=['POST'])
     def submit_form():
