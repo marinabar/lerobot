@@ -114,13 +114,8 @@
                     <button type="button" onclick="toggleCheckboxes('select', 'fps')" class="text-blue-500">Select All</button>
                     <button type="button" onclick="toggleCheckboxes('deselect', 'fps')" class="text-red-500">Deselect All</button>
                 </div>
-                <div class="h-32 overflow-y-auto border rounded-md p-2 mt-2 space-y-2">
-                    {% for fps in fps_options %}
-                        <div>
-                            <input type="checkbox" id="fps_{{ loop.index }}" name="fps" value="{{ fps }}" checked>
-                            <label for="fps_{{ loop.index }}" class="text-gray-700 ml-2">{{ fps }}</label>
-                        </div>
-                    {% endfor %}
+                <div id="fps-container" class="h-32 overflow-y-auto border rounded-md p-2 mt-2 space-y-2">
+                    
                 </div>
             </div>
 
