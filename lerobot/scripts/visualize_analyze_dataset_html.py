@@ -163,6 +163,18 @@ def run_server(
             # empty tasks column so that list_datasets.html can display them, we don't have access now
             df = pd.DataFrame({'repo_id': dataset_list,
                             'tasks': [json.dumps({'0':'N/A'})]*len(dataset_list)})
+            
+            # to update for csv file
+            file = csv_file
+            if file == '' or not file.endswith('.csv') or not os.path.exists(file):
+                print(f"File {file} does not exist")
+                return redirect(url_for('homepage'))
+            if file:
+                csv_df = pd.read_csv(file)
+                print(f"csv_df columns: {csv_df.columns}")
+                # Check for tasks
+                merged_df = df.merge(csv_df[['repo_id', 'tasks']], on='repo_id', how='left')
+                df['tasks'] = merged_df['tasks_y']
 
             global full_dataset
             global current_dataset
