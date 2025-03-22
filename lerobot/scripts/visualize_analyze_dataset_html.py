@@ -166,9 +166,6 @@ def run_server(
             
             # to update for csv file
             file = csv_file
-            if file == '' or not file.endswith('.csv') or not os.path.exists(file):
-                print(f"File {file} does not exist")
-                return redirect(url_for('homepage'))
             if file:
                 csv_df = pd.read_csv(file)
                 # Check for tasks
