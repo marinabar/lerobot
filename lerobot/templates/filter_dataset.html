@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <title>Filter data</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        function toggleCheckboxes(action, group) {
+            const checkboxes = document.querySelectorAll(`input[name="${group}"]`);
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = action === 'select';
+            });
+        }
+    </script>
 </head>
 
 <body class="h-screen overflow-hidden font-mono text-white flex items-center justify-center">

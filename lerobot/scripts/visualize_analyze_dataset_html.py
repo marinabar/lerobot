@@ -133,7 +133,7 @@ def run_server(
     filtered_data = pd.DataFrame()
     current_repo_id = None
 
-    csv_file = "/Users/mbar/projects/huggingface/lerobot/lerobot/scripts/lerobot_datasets.csv"
+    csv_file = "./lerobot_datasets_2.csv"
     @app.route('/')
     def homepage():
         csv_last_modified = os.path.getmtime(csv_file)
@@ -145,6 +145,10 @@ def run_server(
 
     @app.route('/upload', methods=['POST'])
     def upload_file():
+        global full_dataset
+        global current_dataset
+        global filtered_data
+
         if int(request.form['existing']) == 0:
             pasted_text = request.form.get('pasted_list', '').strip()
             if not pasted_text:
@@ -163,11 +167,14 @@ def run_server(
             # empty tasks column so that list_datasets.html can display them, we don't have access now
             df = pd.DataFrame({'repo_id': dataset_list,
                             'tasks': [json.dumps({'0':'N/A'})]*len(dataset_list)})
-
-            global full_dataset
-            global current_dataset
-            global filtered_data
-
+            
+            # to update for csv file
+            file = csv_file
+            if file:
+                csv_df = pd.read_csv(file)
+                # Check for tasks
+                merged_df = df.merge(csv_df[['repo_id', 'tasks']], on='repo_id', how='left')
+                df['tasks'] = merged_df['tasks_y']
             full_dataset = df
             current_dataset = df
             filtered_data = df
@@ -197,6 +204,10 @@ def run_server(
                     robot_fps[str(robot)] = list([int(el) for el in set(df[df['robot_type'] == robot]['fps'].to_list())])
                     robot_fps[robot].sort()
                 robot_fps = json.dumps(robot_fps)
+
+                full_dataset = df
+                current_dataset = df
+                filtered_data = df
                 return render_template('filter_dataset.html',
                                     min_frames=min_frames,
                                     min_eps=min_eps,
@@ -217,6 +228,7 @@ def run_server(
             selected_robot_type = request.form.getlist('robot_type')
             selected_fps = [int(el) for el in request.form.getlist('fps')]
             selected_tasks = int(request.form['tasks'])
+            global current_dataset
             total_datasets, repo_ids, filtered_datasets = filtering_metadata(
                 current_dataset, 
                 selected_episodes, 
