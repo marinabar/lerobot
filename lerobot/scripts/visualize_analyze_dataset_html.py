@@ -171,7 +171,6 @@ def run_server(
                 return redirect(url_for('homepage'))
             if file:
                 csv_df = pd.read_csv(file)
-                print(f"csv_df columns: {csv_df.columns}")
                 # Check for tasks
                 merged_df = df.merge(csv_df[['repo_id', 'tasks']], on='repo_id', how='left')
                 df['tasks'] = merged_df['tasks_y']
