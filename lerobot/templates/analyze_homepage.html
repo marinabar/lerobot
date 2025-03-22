@@ -27,12 +27,17 @@
             </form>
         </div>
         <div class="text-center mb-8">
-            <h1 class="text-4xl font-bold mb-4">or update with last changes</h1>    
-            <p class="text-lg">(this might take a while)</p>  
-            <form action="/upload" method="post" enctype="multipart/form-data" class="space-y-4">
+            <h1 class="text-4xl font-bold mb-4">or paste your dataset list</h1>
+            <p class="text-lg">(paste e.g. ["myuser/mydataset1", "myuser/mydataset2"])</p>
+            <form action="/upload" method="post" class="space-y-4">
+                <!-- text area for list of dataset names -->
+                <div>
+                    <textarea name="pasted_list" id="pasted_list" rows="5" cols="50" placeholder="Paste your Python list of dataset names here"></textarea>
+                </div>
                 <div class="flex justify-center">
+                    <!-- indicates we want to use the 'paste list' route -->
                     <input type="number" id="existing" name="existing" value="0" hidden>
-                    <input type="submit" value="Update" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition duration-300">
+                    <input type="submit" value="Paste dataset list" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition duration-300">
                 </div>
             </form>
         </div>
