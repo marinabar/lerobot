@@ -3,6 +3,7 @@ import logging
 import pandas as pd
 from tqdm import tqdm
 import json
+import os
 
 from lerobot.common.datasets.lerobot_dataset import LeRobotDatasetMetadata
 
@@ -59,7 +60,18 @@ if __name__ == "__main__":
 
     # Get the list of dataset repo_ids
     lerobot_datasets = fetch_lerobot_datasets()
+    print(f"Total LeRobot datasets found: {len(lerobot_datasets)}")
 
+    file = "lerobot_datasets.csv"
+    if file == '' or not file.endswith('.csv') or not os.path.exists(file):
+        print(f"File {file} does not exist")
+    if file:
+        df = pd.read_csv(file)
+    print(f"Loaded {len(df)} datasets from {file}")
+    print(f"There is {len(lerobot_datasets) - len(df)} datasets to analyze")
+
+    existing_repo_ids = df['repo_id'].values
+    lerobot_datasets = [repo_id for repo_id in lerobot_datasets if repo_id not in existing_repo_ids]
     # Collect all dataset info
     dataset_infos = []
     for repo_id in tqdm(lerobot_datasets):
@@ -68,7 +80,9 @@ if __name__ == "__main__":
             dataset_infos.append(info)
 
     # Convert to DataFrame and save to CSV
-    df = pd.DataFrame(dataset_infos)
+    new_df = pd.DataFrame(dataset_infos)
+
+    df = pd.concat([df, new_df], ignore_index=True)
 
     # Save to CSV
     csv_filename = "lerobot_datasets_2.csv"
