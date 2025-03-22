@@ -116,6 +116,7 @@ def filtering_metadata(
         return 0, [], pd.DataFrame()
     return len(filtered_datasets), filtered_datasets["repo_id"].to_list(), filtered_datasets
 
+
 def run_server(
     dataset: LeRobotDataset | IterableNamespace | None,
     episodes: list[int] | None,
@@ -131,6 +132,7 @@ def run_server(
     current_dataset = pd.DataFrame()
     filtered_data = pd.DataFrame()
     current_repo_id = None
+
     csv_file = "./lerobot_datasets.csv"
     @app.route('/')
     def homepage():
@@ -144,41 +146,79 @@ def run_server(
     @app.route('/upload', methods=['POST'])
     def upload_file():
         if int(request.form['existing']) == 0:
-            # TODO : create update code
-            return redirect(url_for('homepage'))
-        file = csv_file
-        if file == '' or not file.endswith('.csv') or not os.path.exists(file):
-            print(f"File {file} does not exist")
-            return redirect(url_for('homepage'))
+            pasted_text = request.form.get('pasted_list', '').strip()
+            if not pasted_text:
+                print("No pasted dataset list provided.")
+                return redirect(url_for('homepage'))
 
-        if file:
-            df = pd.read_csv(file)
+            import ast
+            try:
+                dataset_list = ast.literal_eval(pasted_text)
+                if not isinstance(dataset_list, list):
+                    raise ValueError("Pasted text is not a Python list.")
+            except Exception as e:
+                print(f"Could not parse pasted dataset list: {e}")
+                return redirect(url_for('homepage'))
+
+            # empty tasks column so that list_datasets.html can display them, we don't have access now
+            df = pd.DataFrame({'repo_id': dataset_list,
+                            'tasks': [json.dumps({'0':'N/A'})]*len(dataset_list)})
+            
+            # to update for csv file
+            file = csv_file
+            if file:
+                csv_df = pd.read_csv(file)
+                # Check for tasks
+                merged_df = df.merge(csv_df[['repo_id', 'tasks']], on='repo_id', how='left')
+                df['tasks'] = merged_df['tasks_y']
+
             global full_dataset
-            full_dataset = df
             global current_dataset
-            current_dataset = df
-            min_eps = int(df['total_episodes'].min())
-            min_frames = int(df['total_frames'].min())
-            robot_types = list([str(el) for el in set(df['robot_type'].to_list())])
-            robot_types.sort()
-            fps_filter = list([int(el) for el in set(df['fps'].to_list())])
-            task_count = int(df['total_tasks'].min())
-            current_number_of_datasets = len(df)
+            global filtered_data
 
-            return render_template('filter_dataset.html',
-                                min_frames=min_frames,
-                                min_eps=min_eps,
-                                robot_types=robot_types,
-                                fps_options=fps_filter,
-                                task_count=task_count,
-                                number_datasets=current_number_of_datasets)
+            full_dataset = df
+            current_dataset = df
+            filtered_data = df
+
+            # go to filter page with the new list of datasets
+            return redirect(url_for('list_datasets'))
+        else:
+            # to update for csv file
+            file = csv_file
+            if file == '' or not file.endswith('.csv') or not os.path.exists(file):
+                print(f"File {file} does not exist")
+                return redirect(url_for('homepage'))
+            if file:
+                df = pd.read_csv(file)
+                # Remove nan robot type
+                df = df.dropna(subset=['robot_type'])
+                min_eps = int(df['total_episodes'].min())
+                min_frames = int(df['total_frames'].min())
+                robot_types = list([str(el) for el in set(df['robot_type'].to_list())])
+                robot_types.sort()
+                fps_filter = list([int(el) for el in set(df['fps'].to_list())])
+                task_count = int(df['total_tasks'].min())
+                current_number_of_datasets = len(df)
+                
+                robot_fps = {}
+                for robot in robot_types:
+                    robot_fps[str(robot)] = list([int(el) for el in set(df[df['robot_type'] == robot]['fps'].to_list())])
+                    robot_fps[robot].sort()
+                robot_fps = json.dumps(robot_fps)
+                return render_template('filter_dataset.html',
+                                    min_frames=min_frames,
+                                    min_eps=min_eps,
+                                    robot_types=robot_types,
+                                    fps_options=fps_filter,
+                                    task_count=task_count,
+                                    number_datasets=current_number_of_datasets,
+                                    robot_fps_map=robot_fps)
 
     @app.route('/submit', methods=['POST'])
     def submit_form():
         global current_repo_id
         global filtered_data
         global current_dataset
-        print(f"Value of finished: {request.form['finished']}")
         if int(request.form['finished']) == 0:
             selected_frames = int(request.form['frames'])
             selected_episodes = int(request.form['episodes'])
@@ -190,7 +230,7 @@ def run_server(
                 selected_episodes, 
                 selected_frames, 
                 selected_robot_type, 
-                True, 
+                False, 
                 selected_fps, 
                 selected_tasks
             )
@@ -208,26 +248,39 @@ def run_server(
             fps_filter = list([int(el) for el in set(current_dataset['fps'].to_list())])
             task_count = int(current_dataset['total_tasks'].min())
             current_number_of_datasets = len(current_dataset)
+            robot_fps = {}
+            for robot in robot_types:
+                robot_fps[str(robot)] = list([int(el) for el in set(current_dataset[current_dataset['robot_type'] == robot]['fps'].to_list())])
+                robot_fps[robot].sort()
+            robot_fps = json.dumps(robot_fps)
             return render_template('filter_dataset.html',
                                 min_frames=min_frames,
                                 min_eps=min_eps,
                                 robot_types=robot_types,
                                 fps_options=fps_filter,
                                 task_count=task_count,
-                                number_datasets=current_number_of_datasets)
+                                number_datasets=current_number_of_datasets,
+                                robot_fps_map=robot_fps)
         elif int(request.form['finished']) == 1:
-            print(f"redirecting to {current_repo_id}")
-            repo_ids = current_repo_id
-            dataset_namespace = repo_ids[0].split("/")[0]
-            dataset_name = repo_ids[0].split("/")[1]
-            return redirect(
-                url_for(
-                    "show_episode",
-                    dataset_namespace=dataset_namespace,
-                    dataset_name=dataset_name,
-                    episode_id=0,
-                )
-            )
+            return redirect(url_for('list_datasets'))
+
+    @app.route('/datasets')
+    def list_datasets():
+        global filtered_data
+        if filtered_data.empty:
+            return "No datasets available.", 404
+
+        datasets_info = []
+        for _, row in filtered_data.iterrows():
+            repo_id = row['repo_id']
+            tasks = filtered_data[filtered_data['repo_id'] == repo_id]['tasks'].to_list()[0]
+            tasks = json.loads(tasks)
+            first_task = list(tasks.values())[0]
+            datasets_info.append({
+                'name': repo_id,
+                'task_description': first_task if first_task else 'No task description available'
+            })
+        return render_template('list_datasets.html', datasets=datasets_info)
 
     @app.route("/<string:dataset_namespace>/<string:dataset_name>/episode_<int:episode_id>")
     def show_episode(dataset_namespace, dataset_name, episode_id, dataset=dataset, episodes=episodes):
@@ -332,6 +385,15 @@ def run_server(
                 'final_filtering.html', 
                 number_datasets=len(current_dataset),
                 repo_ids=all_repo_ids)
+        
+    @app.route('/final_filtering')
+    def final_filtering():
+        global current_dataset
+        all_repo_ids = current_dataset['repo_id'].to_list()
+        return render_template(
+            'final_filtering.html', 
+            number_datasets=len(current_dataset),
+            repo_ids=all_repo_ids)
         
     app.run(host=host, port=port, debug=True)
 
